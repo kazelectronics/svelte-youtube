@@ -1,9 +1,9 @@
-<script context="module">
-  /**
-   * Expose PlayerState constants for convenience. These constants can also be
-   * accessed through the global YT object after the YouTube IFrame API is instantiated.
-   * https://developers.google.com/youtube/iframe_api_reference#onStateChange
-   */
+<script>
+  import { onMount, onDestroy } from 'svelte';
+  import { createEventDispatcher } from 'svelte';
+  import YoutubePlayer from 'youtube-player';
+
+  // Export PlayerState constants for convenience
   export const PlayerState = {
     UNSTARTED: -1,
     ENDED: 0,
@@ -12,12 +12,6 @@
     BUFFERING: 3,
     CUED: 5,
   };
-</script>
-
-<script>
-  import { onMount } from 'svelte';
-  import { createEventDispatcher } from 'svelte';
-  import YoutubePlayer from 'youtube-player';
 
   export { className as class }; // HTML class names for container element (optional)
   export let id = undefined; // HTML element ID for player (optional)
@@ -28,13 +22,10 @@
   let playerElem;            // player DOM element reference
   let player;                // player API instance
 
-  // Create and tear down player as component mounts or unmounts
-  onMount(() => createPlayer());
+  const dispatch = createEventDispatcher();
 
-  // Update videoId and load new video if URL changes
-  $: play(videoId);
-
-  function createPlayer() {
+  // Create player when component mounts
+  onMount(() => {
     player = YoutubePlayer(playerElem, options);
 
     // Register event handlers
@@ -44,8 +35,22 @@
     player.on('playbackRateChange', onPlayerPlaybackRateChange);
     player.on('playbackQualityChange', onPlayerPlaybackQualityChange);
 
-    // Tear down player when done
-    return () => player.destroy();
+    // Start playing when mounted
+    if (videoId) {
+      play(videoId);
+    }
+  });
+
+  // Clean up player when component is destroyed
+  onDestroy(() => {
+    if (player) {
+      player.destroy();
+    }
+  });
+
+  // Update videoId and load new video if URL changes
+  $: if (player && videoId) {
+    play(videoId);
   }
 
   function play(videoId) {
@@ -61,11 +66,6 @@
     }
   }
 
-  // -------------------------------------------
-  // Event handling
-  // -------------------------------------------
-	const dispatch = createEventDispatcher();
-
   /**
    * https://developers.google.com/youtube/iframe_api_reference#onReady
    *
@@ -74,9 +74,6 @@
    */
   function onPlayerReady(event) {
     dispatch('ready', event);
-
-    // Start playing
-    play(videoId);
   }
 
   /**
